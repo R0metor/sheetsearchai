@@ -42,7 +42,7 @@ const SpreadsheetPreview = ({ rows, sheetName }) => {
       </div>
       <div className="overflow-x-auto rounded-xl border border-slate-200/60 dark:border-slate-700/40">
         <table className="w-full text-xs">
-          <thead>
+          <thead className="sticky top-0 z-10">
             <tr>
               {headers.map((h, i) => (
                 <th key={i} className="px-3 py-2.5 text-left font-semibold text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 border-b border-green-200/30 dark:border-green-800/30 whitespace-nowrap">
@@ -91,11 +91,32 @@ const ColumnExplorer = ({ columns }) => {
   );
 };
 
-const LoadingState = () => (
-  <div className="flex items-center justify-center py-24">
-    <div className="text-center">
-      <RefreshCw size={32} className="text-green-500 animate-spin mx-auto mb-4" />
-      <p className="text-sm text-slate-500 dark:text-slate-400">Loading sheet data…</p>
+const Skeleton = ({ className = "" }) => (
+  <div className={`animate-pulse bg-slate-200 dark:bg-slate-700 rounded-xl ${className}`} />
+);
+
+const SkeletonDashboard = () => (
+  <div className="max-w-7xl mx-auto space-y-6">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="bg-white/70 dark:bg-slate-800/50 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 p-5">
+          <Skeleton className="w-10 h-10 mb-3" />
+          <Skeleton className="h-7 w-20 mb-2" />
+          <Skeleton className="h-3 w-24" />
+        </div>
+      ))}
+    </div>
+    <div className="grid lg:grid-cols-2 gap-6">
+      <div className="bg-white/70 dark:bg-slate-800/50 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 p-5">
+        <Skeleton className="h-5 w-40 mb-4" />
+        {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-8 w-full mb-2" />)}
+      </div>
+      <div className="bg-white/70 dark:bg-slate-800/50 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 p-5">
+        <Skeleton className="h-5 w-40 mb-4" />
+        <div className="flex flex-wrap gap-2">
+          {[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-7 w-24" />)}
+        </div>
+      </div>
     </div>
   </div>
 );
@@ -157,11 +178,11 @@ export const DashboardPage = ({ dark, setDark, setPage, datasetId, setDatasetId 
         <DashboardHeader dark={dark} setDark={setDark} title="Dashboard" />
         <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
-            <LoadingState />
+            <SkeletonDashboard />
           ) : !stats ? (
             <div className="text-center py-24">
               <Database size={32} className="text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">No dataset connected. Upload a CSV or XLSX file to begin.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Upload a CSV or XLSX file to start analyzing your data.</p>
               <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-400 transition-colors shadow-lg shadow-green-500/30">
                 {uploading ? <RefreshCw size={16} className="animate-spin" /> : <Plus size={16} />}
                 <span>{uploading ? "Uploading..." : "Upload File"}</span>

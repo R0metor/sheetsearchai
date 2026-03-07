@@ -3,6 +3,7 @@ import { Bot, User, Send, Copy, Check, Sparkles, Table, History, ArrowRight, Ale
 import { AnimatedBackground } from "../components/AnimatedBackground.jsx";
 import { Sidebar } from "../layout/Sidebar.jsx";
 import { DashboardHeader } from "../layout/DashboardHeader.jsx";
+import { humanizeColumnName, normalizeQuery } from "../utils/columns.js";
 
 const API_BASE = "";
 
@@ -35,7 +36,7 @@ const RowsTable = ({ rows }) => {
         <thead>
           <tr>
             {headers.map((h, i) => (
-              <th key={i} className="text-green-700 dark:text-green-300 bg-green-50/50 dark:bg-green-900/20 whitespace-nowrap">{h}</th>
+              <th key={i} className="text-green-700 dark:text-green-300 bg-green-50/50 dark:bg-green-900/20 whitespace-nowrap">{humanizeColumnName(h)}</th>
             ))}
           </tr>
         </thead>
@@ -69,20 +70,39 @@ const AggregateCard = ({ aggregate }) => {
         {typeof aggregate.value === "number" ? aggregate.value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : aggregate.value}
       </div>
       <div className="text-xs text-green-600/70 dark:text-green-400/60 mt-1">
-        Column: {aggregate.column} · {aggregate.count} rows analyzed
+        Column: {humanizeColumnName(aggregate.column)} · {aggregate.count} rows analyzed
       </div>
     </div>
   );
+};
+
+/* ── Human-readable group title helper ── */
+const OP_LABELS = { sum: "Total", count: "Count of", avg: "Average", min: "Min", max: "Max" };
+
+const toTitleCase = (str) =>
+  String(str)
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+const formatGroupTitle = (answer) => {
+  if (!answer) return "";
+  // answer often looks like "SUM by office_location" or "SUM BY OFFICE_LOCATION"
+  const m = answer.match(/^(\w+)\s+by\s+(\S+)/i);
+  if (!m) return toTitleCase(answer);
+  const [, op, group] = m;
+  const opLabel = OP_LABELS[op.toLowerCase()] || toTitleCase(op);
+  return `${opLabel} by ${toTitleCase(group)}`;
 };
 
 /* ───────── Group Aggregate Table ───────── */
 
 const GroupTable = ({ groups, answer }) => {
   if (!groups || groups.length === 0) return null;
+  const title = formatGroupTitle(answer);
   return (
     <div className="my-3">
       <div className="text-xs font-semibold text-green-700 dark:text-green-300 mb-2 uppercase tracking-wide">
-        {answer}
+        {title}
       </div>
       <div className="overflow-x-auto rounded-xl border border-slate-200/60 dark:border-slate-700/40">
         <table className="chat-table">
@@ -305,11 +325,11 @@ const ChatMessage = ({ msg, index }) => {
         }`}>
         {isAI ? <Bot size={14} className="text-green-600 dark:text-green-400" /> : <User size={14} className="text-slate-600 dark:text-slate-300" />}
       </div>
-      <div className={`max-w-3xl ${isAI ? "" : "text-right"}`}>
+      <div className={isAI ? "max-w-3xl" : "flex justify-end"}>
         <div className={`inline-block rounded-2xl px-5 py-3.5 text-sm leading-relaxed ${isAI
           ? "bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 shadow-sm border border-slate-200/50 dark:border-slate-700/40"
           : "bg-green-600 text-white"
-          }`} style={isAI ? { borderLeft: "3px solid #22C55E" } : {}}>
+          }`} style={isAI ? { borderLeft: "3px solid #22C55E" } : { maxWidth: "min(600px, 72vw)" }}>
 
           {/* Live execution animation */}
           {isAI && renderExecutingPlan()}
@@ -327,7 +347,7 @@ const ChatMessage = ({ msg, index }) => {
               {renderAIContent()}
             </div>
           ) : (
-            <span className="whitespace-pre-wrap">{msg.content}</span>
+            <span>{msg.content}</span>
           )}
         </div>
 
@@ -344,34 +364,97 @@ const ChatMessage = ({ msg, index }) => {
                 {showTrace ? "Hide trace" : "Show trace"}
               </button>
             )}
+            {msg.ts && (
+              <span className="text-[10px] text-slate-300 dark:text-slate-600 ml-auto">{msg.ts}</span>
+            )}
+          </div>
+        )}
+        {!isAI && msg.ts && (
+          <div className="flex justify-end mt-1">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500">{msg.ts}</span>
           </div>
         )}
 
         {/* Expandable trace detail */}
         {showTrace && data?.trace && (
           <div className="mt-3 p-4 rounded-xl bg-slate-800 dark:bg-slate-900 border border-slate-700/60 text-xs animate-fade-in max-w-3xl">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-4">
               <Terminal size={13} className="text-teal-400" />
               <span className="font-semibold text-teal-300 uppercase tracking-wide text-[11px]">Execution Trace</span>
             </div>
-            {data.trace.map((step, idx) => (
-              <div key={idx} className="mb-2 pb-2 border-b border-slate-700/50 last:border-0 last:mb-0 last:pb-0">
-                <div className="text-white font-medium">Step {idx + 1}: <span className="text-teal-300">{step.tool}</span></div>
-                <div className="text-slate-400 mt-0.5">Rows: {step.rows_before} → {step.rows_after}</div>
-                <div className="text-slate-500">{step.ms}ms</div>
-              </div>
-            ))}
-            <div className="mt-3 pt-3 border-t border-slate-700/50 space-y-1">
+
+            <div className="space-y-3">
+              {data.trace.map((step, idx) => {
+                const toolName = step.tool
+                  ? step.tool.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+                  : `Step ${idx + 1}`;
+
+                // Try to surface a human condition / operation from step.args
+                let detail = null;
+                if (step.args) {
+                  const args = step.args;
+                  if (args.column && args.op && args.value !== undefined) {
+                    detail = <span>Condition: <span className="text-teal-200">{args.column} {args.op} {String(args.value)}</span></span>;
+                  } else if (args.agg_fn && args.group_by) {
+                    detail = <span>Operation: <span className="text-teal-200">{String(args.agg_fn).toUpperCase()}({args.column ?? "*"})</span> &nbsp;·&nbsp; Group by: <span className="text-teal-200">{args.group_by}</span></span>;
+                  } else if (args.column && args.ascending !== undefined) {
+                    detail = <span>Direction: <span className="text-teal-200">{args.ascending ? "Ascending" : "Descending"}</span></span>;
+                  } else if (args.n !== undefined) {
+                    detail = <span>Limit: <span className="text-teal-200">{args.n} rows</span></span>;
+                  } else if (args.column) {
+                    detail = <span>Column: <span className="text-teal-200">{args.column}</span></span>;
+                  }
+                }
+
+                return (
+                  <div key={idx} className="border-b border-slate-700/50 last:border-0 pb-3 last:pb-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-white font-semibold">Step {idx + 1} — <span className="text-teal-300">{toolName}</span></span>
+                      {step.ms !== undefined && (
+                        <span className="text-slate-500 font-mono text-[10px]">{step.ms}ms</span>
+                      )}
+                    </div>
+                    {detail && (
+                      <div className="text-slate-400 text-[11px] mb-1">{detail}</div>
+                    )}
+                    {step.rows_before !== undefined && (
+                      <div className="text-slate-500 text-[11px] font-mono">
+                        Rows: {step.rows_before.toLocaleString()} → {step.rows_after.toLocaleString()}
+                        {step.rows_before > 0 && (
+                          <span className="ml-2 text-teal-500/70">
+                            ({Math.round((1 - step.rows_after / step.rows_before) * 100)}% filtered)
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-700/50 space-y-1">
               {data.confidence !== undefined && (
-                <div className="text-slate-400">Confidence: <span className={`font-medium ${data.confidence >= 0.8 ? "text-green-400" : data.confidence >= 0.5 ? "text-yellow-400" : "text-red-400"}`}>{Math.round(data.confidence * 100)}%</span></div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Confidence</span>
+                  <span className={`font-bold text-sm ${data.confidence >= 0.8 ? "text-green-400" :
+                    data.confidence >= 0.5 ? "text-yellow-400" : "text-red-400"
+                    }`}>{Math.round(data.confidence * 100)}%</span>
+                </div>
               )}
               {data.ms_total !== undefined && (
-                <div className="text-slate-500">Total time: {data.ms_total}ms</div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Total time</span>
+                  <span className="text-slate-400 font-mono">{data.ms_total}ms</span>
+                </div>
               )}
               {data.debug_id && (
-                <div className="text-slate-600 font-mono">Debug ID: {data.debug_id}</div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Debug ID</span>
+                  <span className="text-slate-600 font-mono text-[10px]">{data.debug_id}</span>
+                </div>
               )}
             </div>
+
             {data.plan && (
               <div className="mt-3 pt-3 border-t border-slate-700/50">
                 <button onClick={() => setShowPlan(!showPlan)} className="flex items-center gap-1 text-slate-400 hover:text-teal-300 transition-colors text-[11px]">
@@ -409,16 +492,42 @@ const TypingIndicator = () => (
   </div>
 );
 
-/* ───────── Suggested Questions ───────── */
+/* ───────── Dynamic Suggested Questions ───────── */
 
-const SUGGESTIONS = [
-  "Show all electronics",
-  "What's the average price?",
-  "Which category has the most items?",
-  "What products should I restock?",
-  "Show low stock items sorted by rating",
-  "How many products are out of stock?",
-];
+function detectColType(value) {
+  if (value === null || value === undefined || value === "") return "string";
+  const s = String(value).trim().toLowerCase();
+  if (["true", "false", "yes", "no", "1", "0"].includes(s)) return "boolean";
+  if (!isNaN(Number(value)) && String(value).trim() !== "") return "numeric";
+  if (/\d{4}/.test(s) && !isNaN(Date.parse(value))) return "date";
+  return "string";
+}
+
+function generateSuggestedQuestions(columnTypes) {
+  const numeric = columnTypes.filter((c) => c.type === "numeric").map((c) => c.name);
+  const strings = columnTypes.filter((c) => c.type === "string").map((c) => c.name);
+  const dates = columnTypes.filter((c) => c.type === "date").map((c) => c.name);
+  const booleans = columnTypes.filter((c) => c.type === "boolean").map((c) => c.name);
+
+  const suggestions = [];
+
+  if (numeric[0]) suggestions.push(`What is the average ${humanizeColumnName(numeric[0])}?`);
+  if (numeric[0]) suggestions.push(`Show the top 10 rows by ${humanizeColumnName(numeric[0])}`);
+  if (numeric[1]) suggestions.push(`What is the total ${humanizeColumnName(numeric[1])}?`);
+  if (strings[0]) suggestions.push(`Which ${humanizeColumnName(strings[0])} has the most rows?`);
+  if (strings[1]) suggestions.push(`Show all unique values of ${humanizeColumnName(strings[1])}`);
+  if (dates[0]) suggestions.push(`How many rows were added per month?`);
+  if (dates[0]) suggestions.push(`Show rows sorted by ${humanizeColumnName(dates[0])}`);
+  if (booleans[0]) suggestions.push(`How many rows have ${humanizeColumnName(booleans[0])} = true?`);
+
+  // Fallback if schema has very few columns
+  if (suggestions.length < 2) {
+    suggestions.push("What columns are available?");
+    suggestions.push("Show the first 10 rows");
+  }
+
+  return suggestions.slice(0, 6);
+}
 
 /* ───────── Chat Page ───────── */
 
@@ -428,14 +537,44 @@ export const ChatPage = ({ dark, setDark, setPage, datasetId }) => {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [lastMeta, setLastMeta] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [columns, setColumns] = useState([]);   // raw schema column names for query normalization
   const chatEndRef = useRef(null);
+
+  // Fetch schema and build dynamic suggestions
+  useEffect(() => {
+    if (!datasetId) {
+      setSuggestions(["What columns are available?", "Show the first 10 rows"]);
+      return;
+    }
+    fetch(`${API_BASE}/api/stats?dataset_id=${datasetId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.ok) return;
+        const rawColumns = data.columns || [];
+        setColumns(rawColumns);   // store for query normalization
+        const sample = data.sample_rows?.[0] ?? {};
+        const columnTypes = rawColumns.map((name) => ({
+          name,
+          type: detectColType(sample[name]),
+        }));
+        setSuggestions(generateSuggestedQuestions(columnTypes));
+      })
+      .catch(() => {
+        setSuggestions(["What columns are available?", "Show the first 10 rows"]);
+      });
+  }, [datasetId]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
   const askAgent = async (question) => {
-    setMessages((prev) => [...prev, { role: "user", content: question }]);
+    // Normalize human-readable column references back to snake_case before sending
+    const normalizedQuestion = normalizeQuery(question, columns);
+    const ts = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    // Show the original (human-readable) question in the UI
+    setMessages((prev) => [...prev, { role: "user", content: question, ts }]);
     setInput("");
     setIsTyping(true);
 
@@ -443,7 +582,7 @@ export const ChatPage = ({ dark, setDark, setPage, datasetId }) => {
       const res = await fetch(`${API_BASE}/agent/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, dataset_id: datasetId }),
+        body: JSON.stringify({ question: normalizedQuestion, dataset_id: datasetId }),
       });
 
       if (!res.ok) {
@@ -458,18 +597,21 @@ export const ChatPage = ({ dark, setDark, setPage, datasetId }) => {
       }
 
       const data = await res.json();
+      const replyTs = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       setLastMeta(data);
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.answer || "No response.", data },
+        { role: "assistant", content: data.answer || "No response.", data, ts: replyTs },
       ]);
     } catch (err) {
+      const errTs = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
           content: "Failed to reach the server.",
           data: { ok: false, answer_type: "error", answer: `Connection error: ${err.message}`, tools_used: [] },
+          ts: errTs,
         },
       ]);
     } finally {
@@ -499,12 +641,13 @@ export const ChatPage = ({ dark, setDark, setPage, datasetId }) => {
                       <Sparkles size={28} className="text-green-500" />
                     </div>
                     <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-white mb-2">Ask anything about your data</h2>
-                    <p className="text-slate-500 dark:text-slate-400 mb-8">Your Google Sheet is connected. Try a question below.</p>
+                    <p className="text-slate-500 dark:text-slate-400 mb-2">The AI converts your question into a deterministic query plan and runs it directly on your dataset.</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mb-8">Try one of the suggestions below, or type your own question.</p>
                     <div className="flex flex-wrap justify-center gap-2 max-w-2xl mx-auto">
-                      {SUGGESTIONS.map((q, i) => (
+                      {suggestions.map((q, i) => (
                         <button
                           key={i}
-                          onClick={() => askAgent(q)}
+                          onClick={() => setInput(q)}
                           className="px-4 py-2 rounded-xl text-sm bg-white dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/40 hover:border-green-300 dark:hover:border-green-700 hover:text-green-600 dark:hover:text-green-400 transition-all hover:shadow-sm"
                         >
                           {q}
