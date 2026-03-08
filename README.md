@@ -6,7 +6,7 @@ Upload a CSV/XLSX file and ask questions like:
 
 *"Top 3 office locations by total salary among non-remote employees hired after 2017"*
 
-<video src="https://raw.githubusercontent.com/R0metor/sheetsearchai/main/docs/sheetsearchaidemovideo.mp4" controls="controls" muted="muted" style="max-width: 100%;"></video>
+<video src="./docs/sheetsearchaidemovideo.mp4" type="video/mp4" controls="controls" muted="muted" style="max-width: 100%;"></video>
 
 ---
 
