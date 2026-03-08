@@ -1,7 +1,9 @@
 # SheetSearch AI
 
-![Pipeline](docs/pipeline.png)
-![Query Transform](docs/query_transform.png)
+<p align="center">
+  <img src="docs/pipeline.png" width="45%">
+  <img src="docs/query_transform.png" width="45%">
+</p>
 
 Natural language → deterministic spreadsheet queries.
 
@@ -13,9 +15,17 @@ Upload a CSV/XLSX file and ask questions like:
 
 ## Demo
 
-![Landing](docs/landing.png)
-![Chat](docs/chat.png)
-![Analytics](docs/analytics.png)
+<p align="center">
+  <img src="docs/landing.png" width="900">
+</p>
+
+<p align="center">
+  <img src="docs/chat.png" width="900">
+</p>
+
+<p align="center">
+  <img src="docs/analytics.png" width="900">
+</p>
 
 ---
 
@@ -35,8 +45,9 @@ limit(3)
 
 ## Tech
 
-FastAPI  
-Pandas  
-React  
-Tailwind  
+FastAPI
+React & Vite
+Tailwind CSS
+Recharts
 OpenAI GPT-4o-mini
+Openpyxl
