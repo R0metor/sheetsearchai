@@ -7,7 +7,7 @@ Upload a CSV/XLSX file and ask questions like:
 *"Top 3 office locations by total salary among non-remote employees hired after 2017"*
 
 <p align="center">
-  <img src="docs/sheetsearchaidemovideogif.gif" width="900">
+  <img src="docs/sheetsearchaidemovideogif.gif" width="100%" alt="App Demo">
 </p>
 
 ---
