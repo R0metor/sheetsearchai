@@ -11,11 +11,11 @@ Upload a CSV/XLSX file and ask questions like:
 ## How It Works
 
 <p align="center">
-  <img src="docs/pipeline-v2.png" width="900">
+  <img src="docs/pipeline-v2.png" width="600">
 </p>
 
 <p align="center">
-  <img src="docs/query_transform-v2.png" width="900">
+  <img src="docs/query_transform-v2.png" width="600">
 </p>
 
 ---
