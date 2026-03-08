@@ -1,15 +1,17 @@
 # SheetSearch AI
 
+Natural language → deterministic spreadsheet queries.
+Upload a CSV/XLSX file and ask questions like:
+"Top 3 office locations by total salary among non-remote employees hired after 2017"
+
+---
+
+## How It Works
+
 <p align="center">
   <img src="docs/pipeline-v2.png" width="45%">
   <img src="docs/query_transform-v2.png" width="45%">
 </p>
-
-Natural language → deterministic spreadsheet queries.
-
-Upload a CSV/XLSX file and ask questions like:
-
-"Top 3 office locations by total salary among non-remote employees hired after 2017"
 
 ---
 
@@ -34,12 +36,13 @@ Upload a CSV/XLSX file and ask questions like:
 Top 3 office locations by total salary among non-remote employees hired after 2017
 
 Execution Plan:
-
-filter(remote=false)  
-filter(hire_date > 2017)  
-group_aggregate(office_location, sum(salary))  
-sort(desc)  
+```
+filter(remote=false)
+filter(hire_date > 2017)
+group_aggregate(office_location, sum(salary))
+sort(desc)
 limit(3)
+```
 
 ---
 
