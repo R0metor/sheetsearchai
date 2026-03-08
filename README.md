@@ -1,8 +1,8 @@
 # SheetSearch AI
 
 <p align="center">
-  <img src="docs/pipeline.png" width="45%">
-  <img src="docs/query_transform.png" width="45%">
+  <img src="docs/pipeline.png?v=1" width="45%">
+  <img src="docs/query_transform.png?v=1" width="45%">
 </p>
 
 Natural language → deterministic spreadsheet queries.
@@ -16,15 +16,15 @@ Upload a CSV/XLSX file and ask questions like:
 ## Demo
 
 <p align="center">
-  <img src="docs/landing.png" width="900">
+  <img src="docs/landing.png?v=1" width="900">
 </p>
 
 <p align="center">
-  <img src="docs/chat.png" width="900">
+  <img src="docs/chat.png?v=1" width="900">
 </p>
 
 <p align="center">
-  <img src="docs/analytics.png" width="900">
+  <img src="docs/analytics.png?v=1" width="900">
 </p>
 
 ---
