@@ -1,5 +1,8 @@
 # SheetSearch AI
 
+![Pipeline](docs/pipeline.png)
+![Query Transform](docs/query_transform.png)
+
 Natural language → deterministic spreadsheet queries.
 
 Upload a CSV/XLSX file and ask questions like:
@@ -13,15 +16,6 @@ Upload a CSV/XLSX file and ask questions like:
 ![Landing](docs/landing.png)
 ![Chat](docs/chat.png)
 ![Analytics](docs/analytics.png)
-
----
-
-## How It Works
-
-<p align="center">
-  <img src="docs/pipeline.png" width="48%" />
-  <img src="docs/query_transform.png" width="48%" />
-</p>
 
 ---
 
